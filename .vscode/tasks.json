@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Odin",
+      "type": "shell",
+      "command": "odin build ./src -out:main -o:aggressive -microarch:native -no-bounds-check -disable-assert",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

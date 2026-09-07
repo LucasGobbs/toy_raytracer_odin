@@ -1,0 +1,19 @@
+{
+  "workbench.colorCustomizations": {
+    "statusBar.background": "#310133",
+    "statusBar.noFolderBackground": "#222225",
+    "statusBar.foreground": "#ffdff1",
+    "activityBar.foreground": "#ffdff1",
+    "activityBar.inactiveForeground": "#ac7092",
+    "activityBar.background": "#410A56",
+    "titleBar.activeBackground": "#5A0E78",
+    "titleBar.activeForeground": "#FEFBFF",
+    "titleBar.inactiveBackground": "#410A56",
+    "titleBar.inactiveForeground": "#FEFBFF"
+  },
+  "[odin]": {
+    "editor.defaultFormatter": "danielgavin.ols",
+    "editor.formatOnSave": true
+  },
+  "ols.server.path": "/opt/homebrew/bin/ols"
+}

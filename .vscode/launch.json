@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Odin",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "odin run ./src/ -o:aggressive -microarch:native -no-bounds-check -disable-assert",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

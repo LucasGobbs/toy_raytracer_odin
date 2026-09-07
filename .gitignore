@@ -1,0 +1,7 @@
+/odin
+main
+output.ppm
+output.qoi
+
+*.bin
+raytracer
