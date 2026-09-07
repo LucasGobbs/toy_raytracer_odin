@@ -12,11 +12,14 @@ IntervalInfinityForward :: Interval(f64) {
 	max = math.F64_MAX,
 }
 
-contains :: proc(interval: Interval($T), value: T) where intrinsics.type.type_is_comparable->bool {
+contains :: #force_inline proc(
+	interval: Interval($T),
+	value: T,
+) where intrinsics.type.type_is_comparable->bool {
 	return interval.min <= value && value <= interval.max
 }
 
-surrounds :: proc(
+surrounds :: #force_inline proc(
 	interval: Interval($T),
 	value: T,
 ) where intrinsics.type.type_is_comparable->bool {

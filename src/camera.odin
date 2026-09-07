@@ -18,19 +18,22 @@ Camera :: struct {
 	pixel_delta_v:    Vec3,
 	samples:          int,
 	max_depth:        int,
-	vfov:             f64,
 	position:         Point3,
 	look_at:          Point3,
-	vup:              Vec3,
-	u, v, w:          Vec3,
 }
 
-camera_create :: proc(ratio: f64, image_width: f64, position: Point3, look_at: Point3) -> Camera {
+camera_create :: proc(
+	ratio: f64 = 16.0 / 9.0,
+	vfov: f64 = 60.0,
+	image_width: f64,
+	position: Point3,
+	look_at: Point3,
+	samples: int = 25,
+	max_depth: int = 2,
+) -> Camera {
 	image_height := math.floor(image_width / ratio)
 	image_height = image_height < 1.0 ? 1.0 : image_height
 
-	vfov := 60.0
-	vup := Vec3Up
 	camera_center := position
 	focal_length := vec_length(position - look_at)
 	theta := utils.degrees_to_radians(vfov)
@@ -39,7 +42,7 @@ camera_create :: proc(ratio: f64, image_width: f64, position: Point3, look_at: P
 	viewport_width := viewport_height * image_width / image_height
 
 	w := vec_unit(position - look_at)
-	u := vec_unit(vec_cross(vup, w))
+	u := vec_unit(vec_cross(Vec3Up, w))
 	v := vec_cross(w, u)
 
 	viewport_u := viewport_width * u
@@ -59,49 +62,22 @@ camera_create :: proc(ratio: f64, image_width: f64, position: Point3, look_at: P
 		pixel00_location = pixel00_location,
 		pixel_delta_u    = pixel_delta_u,
 		pixel_delta_v    = pixel_delta_v,
-		samples          = 250,
-		max_depth        = 225,
-		vfov             = vfov,
+		samples          = samples,
+		max_depth        = max_depth,
 		position         = position,
 		look_at          = look_at,
-		vup              = vup,
-		w                = w,
-		v                = v,
-		u                = u,
 	}
 
 	return camera
 }
 
-camera_render :: proc(cam: Camera, world: ^World, output_buffer: []u8, partitions: int = 8) {
-	image_height := cast(int)cam.image_height
-	image_width := cast(int)cam.image_width
-	rows_per_partition := (image_height + partitions - 1) / partitions
-	for partition in 0 ..< partitions {
-		min_row := partition * rows_per_partition
-		if min_row >= image_height {
-			break
-		}
-
-		max_row := min_row + rows_per_partition
-		max_row = max_row > image_height ? image_height : max_row
-		partition_interval := utils.Interval(f64) {
-			min = cast(f64)min_row,
-			max = cast(f64)(max_row - 1),
-		}
-
-		buffer_interval := utils.Interval(int) {
-			min = min_row * image_width * 4,
-			max = max_row * image_width * 4,
-		}
-		camera_render_partition(
-			cam,
-			world,
-			output_buffer[buffer_interval.min:buffer_interval.max],
-			partition,
-			partition_interval,
-		)
-	}
+camera_calculate_pixel_coordinates :: proc(
+	cam: Camera,
+	i: f64,
+	j: f64,
+	offset: Vec3 = Vec3{},
+) -> Vec3 {
+	return cam.pixel00_location + (i * cam.pixel_delta_u) + (j * cam.pixel_delta_v)
 }
 
 camera_render_threaded :: proc(
@@ -111,10 +87,9 @@ camera_render_threaded :: proc(
 	partitions: int = 8,
 ) {
 
-	threadPool: thread.Pool
-	thread.pool_init(&threadPool, context.allocator, partitions)
-	thread.pool_start(&threadPool)
-	defer thread.pool_destroy(&threadPool)
+	thread_pool: thread.Pool
+	utils.thread_pool_create(&thread_pool, partitions)
+	defer utils.thread_pool_destroy(&thread_pool)
 	client_arena: virtual.Arena
 	arena_allocator_error := virtual.arena_init_growing(&client_arena, 1 * mem.Byte)
 	client_allocator := virtual.arena_allocator(&client_arena)
@@ -134,81 +109,35 @@ camera_render_threaded :: proc(
 			min = cast(f64)min_row,
 			max = cast(f64)(max_row - 1),
 		}
-
 		buffer_interval := utils.Interval(int) {
 			min = min_row * image_width * 4,
 			max = max_row * image_width * 4,
 		}
-		task_data := new(RenderTaskData, client_allocator)
+		task_data := new(RenderTaskData)
 		task_data.cam = cam
 		task_data.world = world
 		task_data.output_buffer = output_buffer[buffer_interval.min:buffer_interval.max]
 		task_data.partition_index = partition
 		task_data.partition_interval = partition_interval
-
-		thread.pool_add_task(&threadPool, client_allocator, partition_worker, task_data, partition)
+		thread.pool_add_task(
+			&thread_pool,
+			client_allocator,
+			partition_worker,
+			task_data,
+			partition,
+		)
 
 	}
-	thread.pool_finish(&threadPool)
+	thread.pool_finish(&thread_pool)
 }
 
 partition_worker :: proc(t: thread.Task) {
 	data := (^RenderTaskData)(t.data)
-	camera_render_partition(
+	renderer_render_partition(
 		data.cam,
 		data.world,
 		data.output_buffer,
 		data.partition_index,
 		data.partition_interval,
 	)
-}
-RenderTaskData :: struct {
-	cam:                Camera,
-	world:              ^World,
-	output_buffer:      []u8,
-	partition_index:    int,
-	partition_interval: utils.Interval(f64),
-}
-camera_render_partition :: proc(
-	cam: Camera,
-	world: ^World,
-	output_buffer: []u8,
-	partition_index: int,
-	partition_interval: utils.Interval(f64),
-) {
-	pixels_sample_scale := 1.0 / cast(f64)cam.samples
-	image_width := cast(int)cam.image_width
-	for j: f64 = partition_interval.min; j <= partition_interval.max; j += 1.0 {
-		row := cast(int)(j - partition_interval.min)
-		fmt.println("Remaining Lines (", partition_index, "): ", cam.image_height - j)
-		for i: f64 = 0.0; i < cam.image_width; i += 1.0 {
-			pixel_index := (row * image_width + cast(int)i) * 4
-			pixel_center :=
-				cam.pixel00_location + (i * cam.pixel_delta_u) + (j * cam.pixel_delta_v)
-
-			base_ray := Ray {
-				direction = pixel_center - cam.center,
-				origin    = cam.center,
-			}
-
-			pixel_color := Color{}
-			for s in 0 ..< cam.samples {
-				offset := Vec3{rand.float64() - .5, rand.float64() - .5, .0}
-				pixel_sample :=
-					cam.pixel00_location +
-					((i + offset.x)) * cam.pixel_delta_u +
-					((j + offset.y) * cam.pixel_delta_v)
-
-				sampled_ray := Ray {
-					direction = pixel_sample - cam.center,
-					origin    = cam.center,
-				}
-
-				pixel_color += trace_ray(sampled_ray, cam.max_depth, world)
-
-			}
-
-			color_to_buffer(pixel_color * pixels_sample_scale, pixel_index, output_buffer)
-		}
-	}
 }

@@ -16,11 +16,6 @@ set_front_face :: proc(ray: Ray, outward_normal: Vec3) -> (Vec3, bool) {
 }
 
 
-HittableObject :: union {
-	Sphere,
-}
-
-
 hit_objects :: proc(world: ^World, ray: Ray, ray_tmin: f64, ray_tmax: f64) -> (HitRecord, bool) {
 	temporary_hit_record := HitRecord{}
 	hit_anything := false
