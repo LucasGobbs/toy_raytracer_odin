@@ -2,6 +2,6 @@
 main
 output.ppm
 output.qoi
-
+odin_bin
 *.bin
 raytracer

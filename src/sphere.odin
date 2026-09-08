@@ -1,11 +1,27 @@
 package main
 
 import "core:math"
-
+import "core:math/rand"
+import "utils"
 Sphere :: struct {
 	center:   Point3,
 	radius:   f64,
 	material: Material,
+}
+
+sphere_random :: proc(center: utils.Interval(f64), radius: utils.Interval(f64)) -> Sphere {
+	get_random_material_interface :: proc() -> Material
+	material_options := []get_random_material_interface {
+		lambertian_random,
+		metal_random,
+		dieletric_random,
+	}
+	material_chosen := rand.choice(material_options)
+	return Sphere {
+		center = vec3_rand_in_interval(center.min, center.max),
+		radius = utils.random_f64_between(radius),
+		material = material_chosen(),
+	}
 }
 
 hit_sphere :: proc(

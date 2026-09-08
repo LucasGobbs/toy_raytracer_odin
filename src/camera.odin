@@ -20,6 +20,11 @@ Camera :: struct {
 	max_depth:        int,
 	position:         Point3,
 	look_at:          Point3,
+
+	// Lensing parameters
+	defocus_angle:    f64,
+	defocus_disk_u:   Vec3,
+	defocus_disk_v:   Vec3,
 }
 
 camera_create :: proc(
@@ -30,15 +35,16 @@ camera_create :: proc(
 	look_at: Point3,
 	samples: int = 25,
 	max_depth: int = 2,
+	defocus_angle: f64 = 0.0,
+	focus_dist: f64 = 10.0,
 ) -> Camera {
 	image_height := math.floor(image_width / ratio)
 	image_height = image_height < 1.0 ? 1.0 : image_height
 
 	camera_center := position
-	focal_length := vec_length(position - look_at)
 	theta := utils.degrees_to_radians(vfov)
 	h := math.tan(theta / 2.0)
-	viewport_height := 2.0 * h * focal_length
+	viewport_height := 2.0 * h * focus_dist
 	viewport_width := viewport_height * image_width / image_height
 
 	w := vec_unit(position - look_at)
@@ -51,8 +57,10 @@ camera_create :: proc(
 	pixel_delta_u := viewport_u / image_width
 	pixel_delta_v := viewport_v / image_height
 
-	viewport_upper_left := camera_center - (focal_length * w) - viewport_u / 2.0 - viewport_v / 2
+	viewport_upper_left := camera_center - (focus_dist * w) - viewport_u / 2.0 - viewport_v / 2
 	pixel00_location := viewport_upper_left + .5 * (pixel_delta_u + pixel_delta_v)
+
+	defocus_radius := focus_dist * math.tan(utils.degrees_to_radians(defocus_angle / 2.0))
 
 	camera := Camera {
 		ratio            = ratio,
@@ -66,6 +74,9 @@ camera_create :: proc(
 		max_depth        = max_depth,
 		position         = position,
 		look_at          = look_at,
+		defocus_angle    = defocus_angle,
+		defocus_disk_u   = u * defocus_radius,
+		defocus_disk_v   = v * defocus_radius,
 	}
 
 	return camera
@@ -140,4 +151,10 @@ partition_worker :: proc(t: thread.Task) {
 		data.partition_index,
 		data.partition_interval,
 	)
+}
+
+
+camera_defocus_disk_sample :: #force_inline proc(cam: Camera) -> Point3 {
+	p := vec3_rand_in_unit_disk()
+	return cam.center + (p.x * cam.defocus_disk_u) + (p.y * cam.defocus_disk_v)
 }

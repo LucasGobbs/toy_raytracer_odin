@@ -44,9 +44,9 @@ vec3_rand :: proc() -> Vec3 {
 
 vec3_rand_in_interval :: proc(min: f64, max: f64) -> Vec3 {
 	return Vec3 {
-		utils.random_f64_in_interval(min, max),
-		utils.random_f64_in_interval(min, max),
-		utils.random_f64_in_interval(min, max),
+		utils.random_f64_between(min, max),
+		utils.random_f64_between(min, max),
+		utils.random_f64_between(min, max),
 	}
 }
 
@@ -56,6 +56,17 @@ vec3_rand_unit :: proc() -> Vec3 {
 		lensq := vec_sqlength(vec)
 		if 1e-160 < lensq && lensq <= 1 {
 			return vec / math.sqrt(lensq)
+		}
+	}
+}
+
+vec3_rand_in_unit_disk :: proc() -> Vec3 {
+	for {
+		vec := vec3_rand_in_interval(-1, 1)
+		vec.z = .0
+		lensq := vec_sqlength(vec)
+		if lensq < 1.0 {
+			return vec
 		}
 	}
 }

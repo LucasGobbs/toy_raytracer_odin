@@ -69,9 +69,11 @@ renderer_render_partition :: proc(
 				offset := Vec3{rand.float64() - .5, rand.float64() - .5, .0}
 				pixel_sample := camera_calculate_pixel_coordinates(cam, i, j, offset)
 
+				ray_origin :=
+					cam.defocus_angle <= .0 ? cam.center : camera_defocus_disk_sample(cam)
 				sampled_ray := Ray {
-					direction = pixel_sample - cam.center,
-					origin    = cam.center,
+					direction = pixel_sample - ray_origin,
+					origin    = ray_origin,
 				}
 
 				pixel_color += trace_ray(sampled_ray, cam.max_depth, world)

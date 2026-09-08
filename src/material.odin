@@ -1,6 +1,7 @@
 package main
 import "core:math"
 import "core:math/rand"
+import "utils"
 // MATERIAL ================================================================================================
 // =========================================================================================================
 Material :: union {
@@ -28,6 +29,10 @@ LambertianMaterial :: struct {
 	albedo: Color,
 }
 
+lambertian_random :: proc() -> Material {
+	return LambertianMaterial{albedo = color_random()}
+}
+
 lambertian_scatter :: proc(ray_in: Ray, hit_record: HitRecord) -> (bool, Ray, Color) {
 	scatter_direction := hit_record.normal + vec3_rand_unit()
 
@@ -49,6 +54,10 @@ lambertian_scatter :: proc(ray_in: Ray, hit_record: HitRecord) -> (bool, Ray, Co
 MetalMaterial :: struct {
 	albedo: Color,
 	fuzz:   f64,
+}
+
+metal_random :: proc() -> Material {
+	return MetalMaterial{albedo = color_random(), fuzz = rand.float64()}
 }
 metal_scatter :: proc(ray_in: Ray, hit_record: HitRecord) -> (bool, Ray, Color) {
 	metal_material := hit_record.material.(MetalMaterial)
@@ -74,6 +83,10 @@ metal_scatter :: proc(ray_in: Ray, hit_record: HitRecord) -> (bool, Ray, Color) 
 // =========================================================================================================
 DieletricMaterial :: struct {
 	refraction_index: f64,
+}
+
+dieletric_random :: proc() -> Material {
+	return DieletricMaterial{refraction_index = rand.float64()}
 }
 
 // Scatter based on function
