@@ -87,9 +87,11 @@ camera_calculate_ray :: proc(cam: Camera, i: f64, j: f64) -> Ray {
 	pixel_sample := camera_calculate_pixel_coordinates(cam, i, j, offset)
 
 	ray_origin := cam.defocus_angle <= .0 ? cam.center : camera_defocus_disk_sample(cam)
+
 	sampled_ray := Ray {
 		direction = pixel_sample - ray_origin,
 		origin    = ray_origin,
+		time      = rand.float64(),
 	}
 
 	return sampled_ray

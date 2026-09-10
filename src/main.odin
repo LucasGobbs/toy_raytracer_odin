@@ -8,8 +8,8 @@ main :: proc() {
 	defer scene_data.scene_destroy(&scene)
 
 	raytracer_data := raytracer.init(
-		image_upscale = 1.0,
-		image_width = 3000.0,
+		image_upscale = 4.0,
+		image_width = 1000.0,
 		ratio = scene.camera.ratio,
 		color_format = 4,
 	)

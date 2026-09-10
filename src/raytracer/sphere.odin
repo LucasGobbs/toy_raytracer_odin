@@ -4,7 +4,7 @@ import "../utils"
 import "core:math"
 import "core:math/rand"
 Sphere :: struct {
-	center:   Point3,
+	center:   Ray,
 	radius:   f64,
 	material: Material,
 }
@@ -18,14 +18,14 @@ sphere_random :: proc(center: utils.Interval(f64), radius: utils.Interval(f64)) 
 	}
 	material_chosen := rand.choice(material_options)
 	return Sphere {
-		center = vec3_rand_in_interval(center.min, center.max),
+		center = Ray{origin = vec3_rand_in_interval(center.min, center.max)},
 		radius = utils.random_f64_between(radius),
 		material = material_chosen(),
 	}
 }
 
 hit_sphere :: proc(
-	center: Point3,
+	center: Ray,
 	radius: f64,
 	ray: Ray,
 	ray_tmin: f64,
@@ -34,7 +34,8 @@ hit_sphere :: proc(
 	HitRecord,
 	bool,
 ) {
-	oc := center - ray.origin
+	current_center := ray_at(center, ray.time)
+	oc := current_center - ray.origin
 	a := vec_sqlength(ray.direction)
 	h := vec_dot(ray.direction, oc)
 	c := vec_sqlength(oc) - radius * radius
@@ -51,8 +52,8 @@ hit_sphere :: proc(
 		}
 	}
 
-	contact_pos := RayAt(ray, root)
-	outward_normal := (contact_pos - center) / radius
+	contact_pos := ray_at(ray, root)
+	outward_normal := (contact_pos - current_center) / radius
 
 	normal, front_face := set_front_face(ray, outward_normal)
 	record := HitRecord {

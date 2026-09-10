@@ -42,6 +42,7 @@ lambertian_scatter :: proc(ray_in: Ray, hit_record: HitRecord) -> (bool, Ray, Co
 	scattered := Ray {
 		origin    = hit_record.position,
 		direction = scatter_direction,
+		time      = ray_in.time,
 	}
 
 	attenuation := hit_record.material.(LambertianMaterial).albedo
@@ -70,6 +71,7 @@ metal_scatter :: proc(ray_in: Ray, hit_record: HitRecord) -> (bool, Ray, Color) 
 	scattered := Ray {
 		origin    = hit_record.position,
 		direction = reflected_direction,
+		time      = ray_in.time,
 	}
 
 	attenuation := metal_material.albedo
@@ -114,6 +116,7 @@ dieletric_scatter :: proc(ray_in: Ray, hit_record: HitRecord) -> (bool, Ray, Col
 	scattered := Ray {
 		origin    = hit_record.position,
 		direction = direction,
+		time      = ray_in.time,
 	}
 
 	return true, scattered, attenuation

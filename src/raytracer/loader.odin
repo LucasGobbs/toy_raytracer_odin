@@ -50,7 +50,10 @@ load_from_scene :: proc(desc: ^scene_data.Scene) -> (CamParams, World) {
 			world_append_sphere(
 				&world,
 				Sphere {
-					center = Point3(object.position),
+					center = Ray {
+						origin = Point3(object.position),
+						direction = Vec3(object.direction),
+					},
 					radius = object.radius,
 					material = load_material(object.material),
 				},

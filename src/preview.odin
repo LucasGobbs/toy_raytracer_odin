@@ -37,9 +37,9 @@ draw_world :: proc(world: ^rayt.World) {
 	for i in 0 ..< len(world.spheres) {
 		radius := cast(f32)world.spheres.radius[i]
 		center := rl.Vector3 {
-			cast(f32)world.spheres.center[i].x,
-			cast(f32)world.spheres.center[i].y,
-			cast(f32)world.spheres.center[i].z,
+			cast(f32)world.spheres.center[i].origin.x,
+			cast(f32)world.spheres.center[i].origin.y,
+			cast(f32)world.spheres.center[i].origin.z,
 		}
 		color := preview_color(world.spheres.material[i])
 		switch {
@@ -189,8 +189,9 @@ interactive_preview :: proc(
 	rl.SetTraceLogLevel(.NONE)
 	rl.InitWindow(screen_width, screen_height, "Ray Tracer Preview")
 	if rl.GetMonitorCount() > 1 {
-		rl.SetWindowMonitor(1)
+		rl.SetWindowMonitor(0)
 	}
+	rl.SetWindowPosition(0, 0)
 	defer rl.CloseWindow()
 
 	image := rl.Image {
