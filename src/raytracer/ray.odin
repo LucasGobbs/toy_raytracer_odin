@@ -1,4 +1,4 @@
-package main
+package raytracer
 
 Ray :: struct {
 	origin:    Point3,

@@ -1,4 +1,4 @@
-package main
+package raytracer
 
 import "core:math"
 import "core:thread"

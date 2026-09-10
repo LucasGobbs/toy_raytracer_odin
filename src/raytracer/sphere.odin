@@ -1,8 +1,8 @@
-package main
+package raytracer
 
+import "../utils"
 import "core:math"
 import "core:math/rand"
-import "utils"
 Sphere :: struct {
 	center:   Point3,
 	radius:   f64,

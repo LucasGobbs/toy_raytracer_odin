@@ -4,13 +4,14 @@ import "core:c"
 import "core:fmt"
 import "core:math"
 import "core:time"
+import rayt "raytracer"
 import rl "vendor:raylib"
 
 clamp_unit :: #force_inline proc(v: f64) -> f64 {
 	return v < 0 ? 0 : (v > 1 ? 1 : v)
 }
 
-albedo_to_rl :: #force_inline proc(col: Color) -> rl.Color {
+albedo_to_rl :: #force_inline proc(col: rayt.Color) -> rl.Color {
 	return rl.Color {
 		u8(clamp_unit(col.r) * 255),
 		u8(clamp_unit(col.g) * 255),
@@ -19,20 +20,20 @@ albedo_to_rl :: #force_inline proc(col: Color) -> rl.Color {
 	}
 }
 
-preview_color :: proc(material: Material) -> rl.Color {
+preview_color :: proc(material: rayt.Material) -> rl.Color {
 	switch m in material {
-	case LambertianMaterial:
+	case rayt.LambertianMaterial:
 		return albedo_to_rl(m.albedo)
-	case MetalMaterial:
+	case rayt.MetalMaterial:
 		return albedo_to_rl(m.albedo)
-	case DieletricMaterial:
+	case rayt.DieletricMaterial:
 		return rl.Color{150, 220, 255, 255} // glass
 	case:
 		return rl.MAGENTA // unknown material: impossible to miss
 	}
 }
 
-draw_world :: proc(world: ^World) {
+draw_world :: proc(world: ^rayt.World) {
 	for i in 0 ..< len(world.spheres) {
 		radius := cast(f32)world.spheres.radius[i]
 		center := rl.Vector3 {
@@ -46,7 +47,7 @@ draw_world :: proc(world: ^World) {
 			// giant ground sphere: wireframe only, otherwise it hides everything
 			rl.DrawSphereWires(center, radius, 16, 16, color)
 		case radius < 0.3:
-			// cheap: the 1600 scattered mini-spheres don't need tessellation
+			// cheap: the scattered mini-spheres don't need tessellation
 			rl.DrawCubeV(center, rl.Vector3{2 * radius, 2 * radius, 2 * radius}, color)
 		case:
 			rl.DrawSphere(center, radius, color)
@@ -57,7 +58,7 @@ draw_world :: proc(world: ^World) {
 }
 
 // Marks where the ray tracer's camera is, what it looks at, and its image plane.
-draw_tracer_camera :: proc(cam: Camera) {
+draw_tracer_camera :: proc(cam: rayt.Camera) {
 	p := rl.Vector3{cast(f32)cam.position.x, cast(f32)cam.position.y, cast(f32)cam.position.z}
 	l := rl.Vector3{cast(f32)cam.look_at.x, cast(f32)cam.look_at.y, cast(f32)cam.look_at.z}
 	rl.DrawCubeV(p, rl.Vector3{0.3, 0.3, 0.3}, rl.YELLOW)
@@ -66,7 +67,7 @@ draw_tracer_camera :: proc(cam: Camera) {
 	// viewport rectangle from the stored pixel deltas
 	du := cam.pixel_delta_u
 	dv := cam.pixel_delta_v
-	c := [4]Vec3 {
+	c := [4]rayt.Vec3 {
 		cam.pixel00_location,
 		cam.pixel00_location + du * cam.image_width,
 		cam.pixel00_location + du * cam.image_width + dv * cam.image_height,
@@ -83,14 +84,106 @@ draw_tracer_camera :: proc(cam: Camera) {
 	}
 }
 
+
+UI_PANEL_W: f32 : 260
+
+UI_LABEL_W: f32 : 70
+
+// draw the row's name label and value echo; the slider itself gets no embedded
+// text, raygui's own textLeft area clips it at this width
+ui_row_frame :: proc(y: f32, label, value_text: cstring) {
+	rl.GuiLabel(rl.Rectangle{x = 10, y = y, width = UI_LABEL_W, height = 20}, label)
+	rl.GuiLabel(rl.Rectangle{x = UI_PANEL_W - 75, y = y, width = 70, height = 20}, value_text)
+}
+
+ui_f64 :: proc(y: ^f32, label: cstring, value: ^f64, min, max: f32) -> bool {
+	v := cast(f32)value^
+	old := v
+	rl.GuiSlider(
+		rl.Rectangle {
+			x = 10 + UI_LABEL_W,
+			y = y^,
+			width = UI_PANEL_W - UI_LABEL_W - 90,
+			height = 20,
+		},
+		nil,
+		nil,
+		&v,
+		min,
+		max,
+	)
+	buf: [64]u8
+	s := cast(string)fmt.bprintf(buf[:], "%.2f", v)
+	if len(s) < len(buf) {
+		buf[len(s)] = 0
+	}
+	ui_row_frame(y^, label, cstring(raw_data(buf[:])))
+	y^ += 26
+	value^ = cast(f64)v
+	return old != v
+}
+
+ui_int :: proc(y: ^f32, label: cstring, value: ^int, min, max: f32) -> bool {
+	v := cast(f32)value^
+	old := v
+	rl.GuiSlider(
+		rl.Rectangle {
+			x = 10 + UI_LABEL_W,
+			y = y^,
+			width = UI_PANEL_W - UI_LABEL_W - 90,
+			height = 20,
+		},
+		nil,
+		nil,
+		&v,
+		min,
+		max,
+	)
+	v = math.floor(v + 0.5)
+	buf: [64]u8
+	s := cast(string)fmt.bprintf(buf[:], "%d", cast(int)v)
+	if len(s) < len(buf) {
+		buf[len(s)] = 0
+	}
+	ui_row_frame(y^, label, cstring(raw_data(buf[:])))
+	y^ += 26
+	value^ = cast(int)v
+	return old != v
+}
+
+// raygui panel with the camera settings; returns true when anything changed
+draw_camera_ui :: proc(params: ^rayt.CamParams) -> bool {
+	changed := false
+	rl.GuiPanel(rl.Rectangle{x = 0, y = 0, width = UI_PANEL_W, height = 400}, "Camera")
+	y: f32 = 36
+	changed = ui_f64(&y, "pos.x", &params.position.x, -10, 10) || changed
+	changed = ui_f64(&y, "pos.y", &params.position.y, -10, 10) || changed
+	changed = ui_f64(&y, "pos.z", &params.position.z, -10, 10) || changed
+	changed = ui_f64(&y, "look.x", &params.look_at.x, -10, 10) || changed
+	changed = ui_f64(&y, "look.y", &params.look_at.y, -10, 10) || changed
+	changed = ui_f64(&y, "look.z", &params.look_at.z, -10, 10) || changed
+	changed = ui_f64(&y, "vfov", &params.vfov, 1, 120) || changed
+	changed = ui_f64(&y, "defocus", &params.defocus_angle, 0, 10) || changed
+	changed = ui_f64(&y, "focus", &params.focus_dist, 0.1, 20) || changed
+	changed = ui_int(&y, "samples", &params.samples, 1, 500) || changed
+	changed = ui_int(&y, "max_depth", &params.max_depth, 1, 50) || changed
+	rl.GuiLabel(
+		rl.Rectangle{x = 10, y = y, width = UI_PANEL_W - 20, height = 20},
+		"tweak sliders, then SPACE",
+	)
+	return changed
+}
+
 // 3D scene preview; SPACE runs the (blocking) raytraced render, BACKSPACE goes back.
 interactive_preview :: proc(
-	cam: Camera,
-	world: ^World,
+	params: ^rayt.CamParams,
+	world: ^rayt.World,
+	raytracer_data: ^rayt.RaytracerParams,
 	pixels: []u8,
 	image_upscale: f64,
 	cores: int = 16,
 ) {
+	cam := rayt.build_camera(params, raytracer_data^)
 	screen_width: c.int = cast(c.int)(cam.image_width * image_upscale)
 	screen_height: c.int = cast(c.int)(cam.image_height * image_upscale)
 	rl.SetTraceLogLevel(.NONE)
@@ -111,29 +204,19 @@ interactive_preview :: proc(
 	defer rl.UnloadTexture(texture)
 	rl.SetTextureFilter(texture, .POINT)
 
-	// recover the tracer's vertical fov from its viewport geometry
-	focal_length := vec_length(cam.position - cam.look_at)
-	viewport_height := vec_length(cam.pixel_delta_v) * cam.image_height
-	tracer_vfov_deg := cast(f32)(2 *
-		math.atan(viewport_height / (2 * focal_length)) *
-		180 /
-		math.PI)
-
 	// orbit state: same view direction as the tracer camera, pulled back for an overview
 	offset := cam.position - cam.look_at
-	distance := cast(f32)vec_length(offset) * 3.5
+	distance := cast(f32)rayt.vec_length(offset) * 3.5
 	yaw := cast(f32)math.atan2(offset.z, offset.x)
-	pitch := cast(f32)math.asin(cast(f64)offset.y / vec_length(offset))
+	pitch := cast(f32)math.asin(cast(f64)offset.y / rayt.vec_length(offset))
 	target := rl.Vector3{cast(f32)cam.look_at.x, cast(f32)cam.look_at.y, cast(f32)cam.look_at.z}
 
 	raytraced := false
 	elapsed: time.Duration
 	for !rl.WindowShouldClose() {
-		if rl.IsKeyPressed(.F12) {
-			rl.TakeScreenshot(fmt.ctprintf("raypreview_%d.png", time.now()._nsec))
-		}
 		if !raytraced {
-			if rl.IsMouseButtonDown(.LEFT) {
+			orbiting_panel := rl.GetMousePosition().x < UI_PANEL_W
+			if rl.IsMouseButtonDown(.LEFT) && !orbiting_panel {
 				d := rl.GetMouseDelta()
 				yaw -= d.x * 0.005
 				pitch -= d.y * 0.005
@@ -141,31 +224,26 @@ interactive_preview :: proc(
 			}
 			distance -= rl.GetMouseWheelMove() * 0.8
 			distance = clamp(distance, 1.0, 120.0)
+		} else if rl.IsKeyPressed(.BACKSPACE) {
+			raytraced = false
+		}
 
-			if rl.IsKeyPressed(.SPACE) {
-				// flush a "Rendering..." frame before the blocking call
-				rl.BeginDrawing()
-				rl.ClearBackground(rl.BLACK)
-				rl.DrawText("Rendering...", 10, 10, 24, rl.ORANGE)
-				rl.EndDrawing()
+		if rl.IsKeyPressed(.SPACE) {
+			// flush a "Rendering..." frame before the blocking call
+			rl.BeginDrawing()
+			rl.ClearBackground(rl.BLACK)
+			rl.DrawText("Rendering...", 10, 10, 24, rl.ORANGE)
+			rl.EndDrawing()
 
-				start := time.tick_now()
-				camera_render_threaded(cam, world, pixels, cores)
-				elapsed = time.tick_since(start)
-				fmt.println("Taked: ", elapsed)
+			start := time.tick_now()
+			rayt.renderer_render_threaded(raytracer_data^, cam, world, pixels, cores)
+			elapsed = time.tick_since(start)
+			fmt.println("Taked: ", elapsed)
 
-				rl.UnloadTexture(texture)
-				texture = rl.LoadTextureFromImage(image)
-				rl.SetTextureFilter(texture, .POINT)
-				raytraced = true
-			}
-		} else {
-			if rl.IsKeyPressed(.BACKSPACE) {
-				raytraced = false
-			}
-			if rl.IsKeyPressed(.SPACE) {
-				raytraced = false // re-render path comes back through preview
-			}
+			rl.UnloadTexture(texture)
+			texture = rl.LoadTextureFromImage(image)
+			rl.SetTextureFilter(texture, .POINT)
+			raytraced = true
 		}
 
 		orb := rl.Vector3 {
@@ -177,7 +255,7 @@ interactive_preview :: proc(
 			position   = target + orb * distance,
 			target     = target,
 			up         = rl.Vector3{0, 1, 0},
-			fovy       = tracer_vfov_deg,
+			fovy       = cast(f32)params.vfov,
 			projection = .PERSPECTIVE,
 		}
 
@@ -185,7 +263,6 @@ interactive_preview :: proc(
 		if raytraced {
 			rl.ClearBackground(rl.BLACK)
 			rl.DrawTextureEx(texture, rl.Vector2{0, 0}, 0, cast(f32)image_upscale, rl.WHITE)
-			rl.DrawText("BACKSPACE: back to preview  |  SPACE: re-render", 10, 10, 20, rl.RAYWHITE)
 		} else {
 			rl.ClearBackground(rl.Color{25, 25, 35, 255})
 			rl.BeginMode3D(cam3d)
@@ -212,6 +289,9 @@ interactive_preview :: proc(
 				18,
 				rl.LIGHTGRAY,
 			)
+		}
+		if !raytraced && draw_camera_ui(params) {
+			cam = rayt.build_camera(params, raytracer_data^)
 		}
 		rl.EndDrawing()
 	}

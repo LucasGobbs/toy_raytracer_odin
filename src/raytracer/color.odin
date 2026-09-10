@@ -1,4 +1,4 @@
-package main
+package raytracer
 import "core:fmt"
 import "core:math"
 import "core:math/rand"

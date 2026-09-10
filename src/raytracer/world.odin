@@ -1,4 +1,4 @@
-package main
+package raytracer
 
 World :: struct {
 	spheres: #soa[dynamic]Sphere,

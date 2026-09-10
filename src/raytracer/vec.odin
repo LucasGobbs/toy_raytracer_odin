@@ -1,8 +1,7 @@
-package main
+package raytracer
+import "../utils"
 import "core:math"
-import "core:math/linalg"
 import "core:math/rand"
-import "utils"
 vec_length :: proc {
 	vec3_length,
 }
