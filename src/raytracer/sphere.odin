@@ -7,8 +7,22 @@ Sphere :: struct {
 	center:   Ray,
 	radius:   f64,
 	material: Material,
+	bbox:     Aabb,
 }
 
+sphere_create :: proc(center: Ray, radius: f64, material: Material) -> Sphere {
+	bbox: Aabb = ---
+	rvec := Vec3{radius, radius, radius}
+	// Static sphere
+	if vec3_is_near_zero(center.direction) {
+		bbox = aabb_create(center.origin - rvec, center.origin + rvec)
+	} else {
+		box1 := aabb_create(ray_at(center, 0) - rvec, ray_at(center, 0) + rvec)
+		box2 := aabb_create(ray_at(center, 1) - rvec, ray_at(center, 1) + rvec)
+		bbox = aabb_create(box1, box2)
+	}
+	return Sphere{center = center, radius = radius, material = material, bbox = bbox}
+}
 sphere_random :: proc(center: utils.Interval(f64), radius: utils.Interval(f64)) -> Sphere {
 	get_random_material_interface :: proc() -> Material
 	material_options := []get_random_material_interface {

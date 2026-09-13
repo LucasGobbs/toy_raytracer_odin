@@ -42,3 +42,7 @@ expand :: #force_inline proc(
 	padding := delta / 2.0
 	return Interval(T){min = interval.min - padding, max = interval.max + padding}
 }
+
+interval_merge :: #force_inline proc(a: Interval($T), b: Interval(T)) -> Interval(T) {
+	return Interval(T){min = a.min <= b.min ? a.min : b.min, max = a.max >= b.max ? a.max : b.max}
+}
