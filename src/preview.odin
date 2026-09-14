@@ -36,12 +36,12 @@ preview_color :: proc(material: rayt.Material) -> rl.Color {
 }
 
 draw_world :: proc(world: ^rayt.World) {
-	for i in 0 ..< len(world.space.objects) {
-		radius := cast(f32)world.space.objects.radius[i]
+	for i in 0 ..< len(world.space.spheres) {
+		radius := cast(f32)world.space.spheres.radius[i]
 		center := rl.Vector3 {
-			cast(f32)world.space.objects.origin[i].x,
-			cast(f32)world.space.objects.origin[i].y,
-			cast(f32)world.space.objects.origin[i].z,
+			cast(f32)world.space.spheres.origin[i].x,
+			cast(f32)world.space.spheres.origin[i].y,
+			cast(f32)world.space.spheres.origin[i].z,
 		}
 		color := preview_color(world.materials[i])
 		switch {
@@ -57,6 +57,29 @@ draw_world :: proc(world: ^rayt.World) {
 		}
 	}
 	rl.DrawGrid(40, 1.0)
+
+	rlv :: proc(v: rayt.Vec3) -> rl.Vector3 {
+		return rl.Vector3{cast(f32)v.x, cast(f32)v.y, cast(f32)v.z}
+	}
+	sphere_count := len(world.space.spheres)
+	for i in 0 ..< len(world.space.quads) {
+		corner := world.space.quads.corner[i]
+		edge_u := world.space.quads.edge_u[i]
+		edge_v := world.space.quads.edge_v[i]
+
+		a := rlv(corner)
+		b := rlv(corner + edge_u)
+		c := rlv(corner + edge_u + edge_v)
+		d := rlv(corner + edge_v)
+
+		color := preview_color(world.materials[sphere_count + i])
+		rl.DrawTriangle3D(a, b, c, color)
+		rl.DrawTriangle3D(a, c, d, color)
+		rl.DrawLine3D(a, b, rl.GRAY)
+		rl.DrawLine3D(b, c, rl.GRAY)
+		rl.DrawLine3D(c, d, rl.GRAY)
+		rl.DrawLine3D(d, a, rl.GRAY)
+	}
 }
 
 // Marks where the ray tracer's camera is, what it looks at, and its image plane.
@@ -323,7 +346,7 @@ interactive_preview :: proc(
 			rl.DrawText(
 				fmt.ctprintf(
 					"spheres: %v   tracer_cam: %v   look_at: %v   last render: %v",
-					len(world.space.objects),
+					len(world.space.spheres),
 					cam.position,
 					cam.look_at,
 					elapsed,

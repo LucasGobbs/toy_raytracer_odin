@@ -18,10 +18,15 @@ interval_size :: proc(interval: Interval($T)) -> T {
 	return interval.max - interval.min
 }
 
-contains :: #force_inline proc(
-	interval: Interval($T),
-	value: T,
-) where intrinsics.type.type_is_comparable->bool {
+contains :: proc {
+	contains_from_values,
+	contains_from_interval,
+}
+
+contains_from_values :: #force_inline proc(min: $T, max: T, value: T) -> bool {
+	return min <= value && value <= max
+}
+contains_from_interval :: #force_inline proc(interval: Interval($T), value: T) -> bool {
 	return interval.min <= value && value <= interval.max
 }
 
@@ -41,10 +46,7 @@ clamp :: #force_inline proc(
 	return value
 }
 
-expand :: #force_inline proc(
-	interval: Interval($T),
-	delta: T,
-) where intrinsics.type.type_is_numeric->Interval(T) {
+expand :: #force_inline proc(interval: Interval($T), delta: T) -> Interval(T) {
 	padding := delta / 2.0
 	return Interval(T){min = interval.min - padding, max = interval.max + padding}
 }

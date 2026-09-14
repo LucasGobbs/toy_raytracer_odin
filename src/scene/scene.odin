@@ -1,6 +1,7 @@
 package scene
 
 import "../utils"
+import "core:math"
 import "core:math/rand"
 
 MaterialType :: enum {
@@ -28,6 +29,14 @@ SceneObject :: struct {
 	material:  SceneMaterial,
 }
 
+// Parallelogram from a corner plus two edge vectors; carries no motion.
+SceneQuad :: struct {
+	corner:   [3]f64,
+	edge_u:   [3]f64,
+	edge_v:   [3]f64,
+	material: SceneMaterial,
+}
+
 SceneCamera :: struct {
 	position:      [3]f64,
 	look_at:       [3]f64,
@@ -43,10 +52,12 @@ Scene :: struct {
 	name:    string, // identifier used in render output filenames
 	camera:  SceneCamera,
 	objects: [dynamic]SceneObject,
+	quads:   [dynamic]SceneQuad,
 }
 
 scene_destroy :: proc(scene: ^Scene) {
 	delete(scene.objects)
+	delete(scene.quads)
 }
 
 scene_camera :: proc(
@@ -71,7 +82,11 @@ scene_camera :: proc(
 }
 
 scene_with_camera :: proc(camera: SceneCamera, capacity: int) -> Scene {
-	return Scene{camera = camera, objects = make([dynamic]SceneObject, 0, capacity)}
+	return Scene {
+		camera = camera,
+		objects = make([dynamic]SceneObject, 0, capacity),
+		quads = make([dynamic]SceneQuad, 0, 4),
+	}
 }
 
 append_ground :: proc(scene: ^Scene) {
@@ -136,6 +151,32 @@ basic_scene :: proc() -> Scene {
 	scene.name = "basic"
 	append_ground(&scene)
 	append_material_test_spheres(&scene)
+	append(
+		&scene.quads,
+		SceneQuad {
+			corner = {2, 0.2, -3.5},
+			edge_u = {2, 0, 0},
+			edge_v = {0, 2, 0},
+			material = SceneMaterial{kind = .lambertian, albedo = {0.2, 0.6, 0.9}},
+		},
+	)
+	return scene
+}
+
+cornell_basic_scene :: proc() -> Scene {
+	scene := scene_with_camera(scene_camera({0, 1, 4}, {0, 0, -1.5}, 45, 0, 5, 25, 10), 5)
+	scene.name = "cornell_basic"
+	append_ground(&scene)
+	append_material_test_spheres(&scene)
+	append(
+		&scene.quads,
+		SceneQuad {
+			corner = {2, 0.2, -3.5},
+			edge_u = {2, 0, 0},
+			edge_v = {0, 2, 0},
+			material = SceneMaterial{kind = .lambertian, albedo = {0.2, 0.6, 0.9}},
+		},
+	)
 	return scene
 }
 
@@ -214,7 +255,7 @@ random_scene :: proc(grid_radius: int = 5) -> Scene {
 	side := 2 * grid_radius
 	capacity := side * side + 1
 	scene := scene_with_camera(
-		scene_camera({-2, 2, 1}, {0, 0, -1.5}, 50, 0.0, 3.4, 100, 50),
+		scene_camera({-2, 1.5, 1}, {0, 0, -1.5}, 40, 0.0, 3.4, 100, 50),
 		capacity,
 	)
 	scene.name = "random"
@@ -228,6 +269,143 @@ complex_scene :: proc() -> Scene {
 	scene := random_scene(5)
 	scene.name = "complex"
 	append_material_test_spheres(&scene)
+	// append(
+	// 	&scene.quads,
+	// 	SceneQuad {
+	// 		corner = {.5, -1.1, -3.8},
+	// 		edge_u = {4, 0, 0},
+	// 		edge_v = {0, 3, 0},
+	// 		material = SceneMaterial{kind = .lambertian, albedo = {0.1, 0.2, 0.3}},
+	// 	},
+	// )
+	// append(
+	// 	&scene.quads,
+	// 	SceneQuad {
+	// 		corner = {.6, -1, -3.5},
+	// 		edge_u = {4, 0, 0},
+	// 		edge_v = {0, 3, 0},
+	// 		material = SceneMaterial{kind = .metal, albedo = {0.6, 0.6, 0.8}},
+	// 	},
+	// )
+	return scene
+}
+
+// rotate_y rotates a vector around the origin's y axis (RTOW convention).
+rotate_y :: proc(v: [3]f64, degrees: f64) -> [3]f64 {
+	radians := utils.degrees_to_radians(degrees)
+	s := math.sin(radians)
+	c := math.cos(radians)
+	return {c * v.x + s * v.z, v.y, -s * v.x + c * v.z}
+}
+
+// append_cuboid bakes a full parallelepiped as 6 quads: build axis-aligned from
+// corners a..b, rotate every face around y through the origin, then translate.
+append_cuboid :: proc(
+	scene: ^Scene,
+	a, b: [3]f64,
+	rotation_deg: f64,
+	offset: [3]f64,
+	material: SceneMaterial,
+) {
+	dx := [3]f64{b.x - a.x, 0, 0}
+	dy := [3]f64{0, b.y - a.y, 0}
+	dz := [3]f64{0, 0, b.z - a.z}
+
+	faces := [6]SceneQuad {
+		{corner = {a.x, a.y, b.z}, edge_u = dx, edge_v = dy, material = material}, // front
+		{corner = {b.x, a.y, b.z}, edge_u = -dz, edge_v = dy, material = material}, // right
+		{corner = {b.x, a.y, a.z}, edge_u = -dx, edge_v = dy, material = material}, // back
+		{corner = {a.x, a.y, a.z}, edge_u = dz, edge_v = dy, material = material}, // left
+		{corner = {a.x, b.y, b.z}, edge_u = dx, edge_v = -dz, material = material}, // top
+		{corner = {a.x, a.y, a.z}, edge_u = dx, edge_v = dz, material = material}, // bottom
+	}
+	for face in faces {
+		face := face
+		face.corner = rotate_y(face.corner, rotation_deg) + offset
+		face.edge_u = rotate_y(face.edge_u, rotation_deg)
+		face.edge_v = rotate_y(face.edge_v, rotation_deg)
+		append(&scene.quads, face)
+	}
+}
+
+cornell_scene :: proc() -> Scene {
+	scene := scene_with_camera(
+		scene_camera({278, 278, -800}, {278, 278, 0}, 40, 0, 10, 100, 50),
+		32,
+	)
+	scene.name = "cornell"
+	scene.camera.ratio = 1.0
+	white := SceneMaterial {
+		kind   = .lambertian,
+		albedo = {0.73, 0.73, 0.73},
+	}
+	red := SceneMaterial {
+		kind   = .lambertian,
+		albedo = {0.65, 0.05, 0.05},
+	}
+	green := SceneMaterial {
+		kind   = .lambertian,
+		albedo = {0.12, 0.45, 0.15},
+	}
+
+	append(
+		&scene.quads,
+		SceneQuad {
+			corner = {0, 0, 0},
+			edge_u = {0, 555, 0},
+			edge_v = {0, 0, 555},
+			material = green,
+		},
+	) // left
+	append(
+		&scene.quads,
+		SceneQuad {
+			corner = {555, 0, 0},
+			edge_u = {0, 555, 0},
+			edge_v = {0, 0, 555},
+			material = red,
+		},
+	) // right
+	append(
+		&scene.quads,
+		SceneQuad {
+			corner = {0, 0, 0},
+			edge_u = {555, 0, 0},
+			edge_v = {0, 0, 555},
+			material = white,
+		},
+	) // floor
+	append(
+		&scene.quads,
+		SceneQuad {
+			corner = {0, 0, 555},
+			edge_u = {555, 0, 0},
+			edge_v = {0, 555, 0},
+			material = white,
+		},
+	) // back
+	append(
+		&scene.quads,
+		SceneQuad {
+			corner = {555, 555, 555},
+			edge_u = {-555, 0, 0},
+			edge_v = {0, 0, -555},
+			material = white,
+		},
+	) // ceiling
+	append(
+		&scene.quads,
+		SceneQuad {
+			corner = {343, 554, 332},
+			edge_u = {-130, 0, 0},
+			edge_v = {0, 0, -105},
+			material = white,
+		},
+	) // light panel
+
+	append_cuboid(&scene, {0, 0, 0}, {165, 330, 165}, 15, {265, 0, 295}, white)
+	append_cuboid(&scene, {0, 0, 0}, {165, 165, 165}, -18, {130, 0, 65}, white)
+
 	return scene
 }
 

@@ -17,6 +17,11 @@ world_append_sphere :: proc(world: ^World, sphere: collider.SphereCollider, mate
 	append(&world.materials, material)
 }
 
+world_append_quad :: proc(world: ^World, quad: collider.QuadCollider, material: Material) {
+	collider.space_append_quad(&world.space, quad)
+	append(&world.materials, material)
+}
+
 world_destroy :: proc(world: ^World) {
 	collider.space_destroy(&world.space)
 	delete(world.materials)

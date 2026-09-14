@@ -41,8 +41,13 @@ grouping_build :: proc(space: ^ColliderSpace, kind: GroupingKind) {
 		space.grouping = LinearGrouping{}
 	case .BVH:
 		bvh: Bvh
-		boxes := space.objects.bbox[:len(space.objects)]
-		bvh_build(&bvh, boxes)
+		n_s := len(space.spheres)
+		n_q := len(space.quads)
+		merged := make([]Aabb, n_s + n_q)
+		copy(merged[:n_s], space.spheres.bbox[:n_s])
+		copy(merged[n_s:], space.quads.bbox[:n_q])
+		bvh_build(&bvh, merged)
+		delete(merged)
 		space.grouping = bvh
 	}
 }
@@ -70,12 +75,22 @@ linear_hit :: proc(space: ^ColliderSpace, ray: Ray, tmin, tmax: f64) -> (HitReco
 	rec: HitRecord
 	hit := false
 	closest := tmax
-	for sphere, i in space.objects {
+	for sphere, i in space.spheres {
 		current, ok := hit_sphere(sphere, ray, tmin, closest)
 		if ok {
 			hit = true
 			closest = current.t
 			current.object_index = i
+			rec = current
+		}
+	}
+
+	for quad, j in space.quads {
+		current, ok := hit_quad(quad, ray, tmin, closest)
+		if ok {
+			hit = true
+			closest = current.t
+			current.object_index = j + len(space.spheres)
 			rec = current
 		}
 	}

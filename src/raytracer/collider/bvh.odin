@@ -108,12 +108,13 @@ bvh_hit_node :: proc(
 
 	if node.left < 0 {
 		for i in node.start ..< node.start + node.count {
-			primitive_index := bvh.indices[i]
-			current, ok := hit_sphere(space.objects[primitive_index], ray, tmin, closest)
+			id := bvh.indices[i]
+			current, ok := hit_primitive(space, id, ray, tmin, closest)
+
 			if ok {
 				hit = true
 				closest = current.t
-				current.object_index = primitive_index
+				current.object_index = id
 				rec = current
 			}
 		}

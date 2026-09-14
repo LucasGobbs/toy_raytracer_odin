@@ -57,6 +57,20 @@ load_from_scene :: proc(desc: ^scene_data.Scene) -> (CamParams, World) {
 		}
 	}
 
+	// Invariant: quads come after all spheres — global collider ids (and
+	// therefore materials) index spheres first, then quads.
+	for quad in desc.quads {
+		world_append_quad(
+			&world,
+			collider.quad_collider_create(
+				Vec3(quad.corner),
+				Vec3(quad.edge_u),
+				Vec3(quad.edge_v),
+			),
+			load_material(quad.material),
+		)
+	}
+
 	return params, world
 }
 
