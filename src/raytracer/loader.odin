@@ -47,7 +47,11 @@ load_from_scene :: proc(desc: ^scene_data.Scene) -> (CamParams, World) {
 		case .sphere:
 			world_append_sphere(
 				&world,
-				collider.sphere_collider_create(object.position, object.direction, object.radius),
+				collider.sphere_collider_create(
+					Vec3(object.position),
+					Vec3(object.direction),
+					object.radius,
+				),
 				load_material(object.material),
 			)
 		}

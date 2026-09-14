@@ -9,7 +9,7 @@ SphereCollider :: struct {
 	bbox:      Aabb,
 }
 
-sphere_collider_create :: proc(origin, direction: $T/[3]f64, radius: f64) -> SphereCollider {
+sphere_collider_create :: proc(origin, direction: Vec3, radius: f64) -> SphereCollider {
 	center := Vec3(origin)
 	motion := Vec3(direction)
 	rvec := Vec3{radius, radius, radius}
