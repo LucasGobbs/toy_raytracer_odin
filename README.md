@@ -9,6 +9,8 @@ comparing acceleration structures in real time.
 
 - [The Books](#the-books)
 - [Render Gallery](#render-gallery)
+  - [App preview](#app-preview)
+  - [Larger examples](#larger-examples)
 - [Progress & Todo](#progress--todo)
   - [Book 1 — Ray Tracing in One Weekend](#book-1--ray-tracing-in-one-weekend)
   - [Book 2 — Ray Tracing: The Next Week](#book-2--ray-tracing-the-next-week)
@@ -43,6 +45,30 @@ Source: [raytracing.github.io](https://raytracing.github.io/) ·
 | ![complex](rendered/complex_BVH_render_5633.69ms_1789405319010355000.png) | **Complex scene** — 100+ random spheres of mixed material on a mirror ground; the RTOW "final scene" equivalent. 5.6 s through the BVH. |
 | ![lots](rendered/lots_of_objects.png) | **Many-object stress test** — book-cover-style field of hundreds of spheres; what the BVH is for. |
 | ![cornell](rendered/cornell_BVH_render_1070.67ms_1789414501959219000.png) | **Cornell box** — correct closed-box geometry with rotated cuboids and a light panel, but no emissive material yet, so the interior is only lit by the sky gradient leaking “through” the box. Lights are the top todo. |
+
+### App preview
+
+![Ray Tracer Preview before rendering](main_screen_print.png)
+
+*The main app view before a render starts.*
+
+### Larger examples
+
+![Many-object scene, wide view](rendered/lots_of_objects_dezoomed.png)
+
+*Many-object scene, wide view.*
+
+![Many-object scene, close view](rendered/lots_of_objects_zoomed.png)
+
+*Many-object scene, close view.*
+
+![Complex scene, high-resolution render](rendered/complex_render_86.95s_1789320869936880000.png)
+
+*Complex scene with the material-test spheres and random sphere field.*
+
+![Cornell box](rendered/cornell_BVH_render_1070.67ms_1789414501959219000.png)
+
+*Cornell box geometry before emissive materials are implemented.*
 
 More renders (including Linear-vs-BVH timing runs) live in `rendered/`; every
 filename encodes `scene_grouping_render_<ms>ms_<ns>.png`, so the directory is

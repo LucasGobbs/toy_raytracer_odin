@@ -235,8 +235,21 @@ interactive_preview :: proc(
 ) {
 	amount := max(amount, 1)
 	cam := rayt.build_camera(params, raytracer_data^)
-	screen_width: c.int = cast(c.int)(cam.image_width * image_upscale)
-	screen_height: c.int = cast(c.int)(cam.image_height * image_upscale)
+	monitor_width := cast(f64)rl.GetMonitorWidth(0)
+	monitor_height := cast(f64)rl.GetMonitorHeight(0)
+	display_scale := image_upscale
+	image_display_width := cam.image_width * display_scale
+	image_display_height := cam.image_height * display_scale
+	if image_display_width > monitor_width || image_display_height > monitor_height {
+		display_scale = min(
+			monitor_width / cam.image_width,
+			monitor_height / cam.image_height,
+		)
+		image_display_width = cam.image_width * display_scale
+		image_display_height = cam.image_height * display_scale
+	}
+	screen_width: c.int = cast(c.int)math.floor(image_display_width)
+	screen_height: c.int = cast(c.int)math.floor(image_display_height)
 	rl.SetTraceLogLevel(.NONE)
 	rl.InitWindow(screen_width, screen_height, "Ray Tracer Preview")
 	if rl.GetMonitorCount() > 1 {
@@ -329,7 +342,7 @@ interactive_preview :: proc(
 		rl.BeginDrawing()
 		if raytraced {
 			rl.ClearBackground(rl.BLACK)
-			rl.DrawTextureEx(texture, rl.Vector2{0, 0}, 0, cast(f32)image_upscale, rl.WHITE)
+			rl.DrawTextureEx(texture, rl.Vector2{0, 0}, 0, cast(f32)display_scale, rl.WHITE)
 		} else {
 			rl.ClearBackground(rl.Color{25, 25, 35, 255})
 			rl.BeginMode3D(cam3d)
