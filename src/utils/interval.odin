@@ -7,9 +7,15 @@ Interval :: struct($T: typeid) {
 	max: T,
 }
 
+F64Interval :: Interval(f64)
+
 IntervalInfinityForward :: Interval(f64) {
 	min = -math.F64_MAX,
 	max = math.F64_MAX,
+}
+
+interval_size :: proc(interval: Interval($T)) -> T {
+	return interval.max - interval.min
 }
 
 contains :: #force_inline proc(

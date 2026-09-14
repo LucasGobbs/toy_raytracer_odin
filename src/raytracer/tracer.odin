@@ -1,7 +1,6 @@
 package raytracer
 
 import "core:math"
-import "core:thread"
 trace_ray :: proc(ray: Ray, depth: int, world: ^World) -> Color {
 	if depth <= 0 do return Color{.0, .0, .0}
 

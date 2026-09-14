@@ -40,6 +40,7 @@ SceneCamera :: struct {
 }
 
 Scene :: struct {
+	name:    string, // identifier used in render output filenames
 	camera:  SceneCamera,
 	objects: [dynamic]SceneObject,
 }
@@ -132,6 +133,7 @@ append_material_test_spheres :: proc(scene: ^Scene) {
 // basic_scene is a small, fast scene for checking camera and materials.
 basic_scene :: proc() -> Scene {
 	scene := scene_with_camera(scene_camera({0, 1, 4}, {0, 0, -1.5}, 45, 0, 5, 25, 10), 5)
+	scene.name = "basic"
 	append_ground(&scene)
 	append_material_test_spheres(&scene)
 	return scene
@@ -140,6 +142,7 @@ basic_scene :: proc() -> Scene {
 // materials_scene isolates the three material types at different depths.
 materials_scene :: proc() -> Scene {
 	scene := scene_with_camera(scene_camera({0, 1, 5}, {0, 0, -3}, 40, 0, 6, 50, 20), 4)
+	scene.name = "materials"
 	append_ground(&scene)
 	append(
 		&scene.objects,
@@ -174,6 +177,7 @@ materials_scene :: proc() -> Scene {
 // defocus_scene puts objects at several depths to tune aperture and focus_dist.
 defocus_scene :: proc() -> Scene {
 	scene := scene_with_camera(scene_camera({0, 1.5, 4}, {0, 0, -3}, 40, 6, 5, 50, 20), 5)
+	scene.name = "defocus"
 	append_ground(&scene)
 	append(
 		&scene.objects,
@@ -213,6 +217,7 @@ random_scene :: proc(grid_radius: int = 5) -> Scene {
 		scene_camera({-2, 2, 1}, {0, 0, -1.5}, 50, 0.0, 3.4, 100, 50),
 		capacity,
 	)
+	scene.name = "random"
 	append_ground(&scene)
 	append_random_grid(&scene, grid_radius)
 	return scene
@@ -221,6 +226,7 @@ random_scene :: proc(grid_radius: int = 5) -> Scene {
 // complex_scene matches the original scene assembled in main.
 complex_scene :: proc() -> Scene {
 	scene := random_scene(5)
+	scene.name = "complex"
 	append_material_test_spheres(&scene)
 	return scene
 }

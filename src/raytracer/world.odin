@@ -1,19 +1,23 @@
 package raytracer
 
+import "collider"
+
+// Holds the collision space and materials, in which, together represents the object geometry and looking
 World :: struct {
-	spheres: #soa[dynamic]Sphere,
-	bbox:    Aabb,
+	space:     collider.ColliderSpace,
+	materials: [dynamic]Material, // same indexing as space.objects
 }
 
 world_create :: proc(capacity: int = 50) -> World {
-	return World{bbox = Aabb{}}
+	return World{space = collider.space_create()}
 }
 
-world_append_sphere :: proc(world: ^World, object: Sphere) {
-	world.bbox = aabb_create_from_bboxes(world.bbox, object.bbox)
-	append_soa(&world.spheres, object)
+world_append_sphere :: proc(world: ^World, sphere: collider.SphereCollider, material: Material) {
+	collider.space_append_sphere(&world.space, sphere)
+	append(&world.materials, material)
 }
 
 world_destroy :: proc(world: ^World) {
-	delete(world.spheres)
+	collider.space_destroy(&world.space)
+	delete(world.materials)
 }

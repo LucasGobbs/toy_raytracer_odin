@@ -1,7 +1,6 @@
-package raytracer
-import "../utils"
-import "vendor:x11/xlib"
-import "vendor:zlib"
+package collider
+import "../../utils"
+
 Aabb :: struct {
 	x, y, z: utils.Interval(f64),
 }
@@ -10,7 +9,9 @@ aabb_create :: proc {
 	aabb_create_from_vectors,
 	aabb_create_from_bboxes,
 }
-aabb_create_from_vectors :: proc(a: Point3, b: Point3) -> Aabb {
+
+// Create from any structure that implements [3]f64 rm.Vec3,rm.Point3)
+aabb_create_from_vectors :: proc(a, b: $T/[3]f64) -> Aabb {
 	return Aabb {
 		x = (a[0] <= b[0]) ? utils.Interval(f64){a[0], b[0]} : utils.Interval(f64){b[0], a[0]},
 		y = (a[1] <= b[1]) ? utils.Interval(f64){a[1], b[1]} : utils.Interval(f64){b[1], a[1]},
@@ -30,10 +31,16 @@ aabb_axis_interval :: proc(aabb: Aabb, n: int) -> utils.Interval(f64) {
 	if n == 2 do return aabb.z
 	return aabb.x
 }
-aabb_hit :: proc(aabb: Aabb, ray: Ray, ray_interval: utils.Interval(f64)) -> bool {
+
+
+aabb_hit :: proc(
+	aabb: Aabb,
+	ray_origin, ray_direction: $T/[3]f64,
+	ray_interval: utils.Interval(f64),
+) -> bool {
 	ray_interval := ray_interval
-	ray_origin := ray.origin
-	ray_direction := ray.direction
+	ray_origin := ray_origin
+	ray_direction := ray_direction
 
 	for axis := 0; axis < 3; axis += 1 {
 		ax := aabb_axis_interval(aabb, axis)
@@ -55,4 +62,15 @@ aabb_hit :: proc(aabb: Aabb, ray: Ray, ray_interval: utils.Interval(f64)) -> boo
 		}
 	}
 	return true
+}
+
+aabb_longest_axis :: proc(aabb: Aabb) -> int {
+	x_size := utils.interval_size(aabb.x)
+	y_size := utils.interval_size(aabb.y)
+	z_size := utils.interval_size(aabb.z)
+	if x_size > y_size {
+		return x_size > z_size ? 0 : 2
+	} else {
+		return y_size > z_size ? 1 : 2
+	}
 }

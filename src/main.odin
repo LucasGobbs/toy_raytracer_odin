@@ -1,6 +1,7 @@
 package main
 
 import raytracer "raytracer"
+import collider "raytracer/collider"
 import scene_data "scene"
 
 main :: proc() {
@@ -14,6 +15,7 @@ main :: proc() {
 		color_format = 4,
 	)
 	cam_params, world := raytracer.load_from_scene(&scene)
+	collider.grouping_build(&world.space, .BVH)
 	defer raytracer.world_destroy(&world)
 
 	pixels := make([]u8, raytracer_data.buffer_size)
@@ -25,5 +27,7 @@ main :: proc() {
 		&raytracer_data,
 		pixels,
 		cast(f64)raytracer_data.image_upscale,
+		scene.name,
+		amount = 2,
 	)
 }

@@ -5,6 +5,8 @@ import "core:fmt"
 import "core:math"
 import "core:time"
 import rayt "raytracer"
+import collider "raytracer/collider"
+import "utils"
 import rl "vendor:raylib"
 
 clamp_unit :: #force_inline proc(v: f64) -> f64 {
@@ -34,14 +36,14 @@ preview_color :: proc(material: rayt.Material) -> rl.Color {
 }
 
 draw_world :: proc(world: ^rayt.World) {
-	for i in 0 ..< len(world.spheres) {
-		radius := cast(f32)world.spheres.radius[i]
+	for i in 0 ..< len(world.space.objects) {
+		radius := cast(f32)world.space.objects.radius[i]
 		center := rl.Vector3 {
-			cast(f32)world.spheres.center[i].origin.x,
-			cast(f32)world.spheres.center[i].origin.y,
-			cast(f32)world.spheres.center[i].origin.z,
+			cast(f32)world.space.objects.origin[i].x,
+			cast(f32)world.space.objects.origin[i].y,
+			cast(f32)world.space.objects.origin[i].z,
 		}
-		color := preview_color(world.spheres.material[i])
+		color := preview_color(world.materials[i])
 		switch {
 		case radius >= 10:
 			// giant ground sphere: wireframe only, otherwise it hides everything
@@ -174,6 +176,29 @@ draw_camera_ui :: proc(params: ^rayt.CamParams) -> bool {
 	return changed
 }
 
+// Writes the rendered frame as a NEW png every time. The nanosecond suffix
+// makes overwrites impossible; name carries scene, grouping and render time.
+save_render :: proc(
+	image: rl.Image,
+	scene_name: string,
+	kind: collider.GroupingKind,
+	elapsed: time.Duration,
+) {
+	millis := time.duration_milliseconds(elapsed)
+	filename := fmt.ctprintf(
+		"rendered/%s_%v_render_%.2fms_%d.png",
+		scene_name,
+		kind,
+		millis,
+		time.to_unix_nanoseconds(time.now()),
+	)
+	if rl.ExportImage(image, filename) {
+		fmt.println("Saved render:", filename)
+	} else {
+		fmt.println("Could not save render:", filename)
+	}
+}
+
 // 3D scene preview; SPACE runs the (blocking) raytraced render, BACKSPACE goes back.
 interactive_preview :: proc(
 	params: ^rayt.CamParams,
@@ -181,8 +206,11 @@ interactive_preview :: proc(
 	raytracer_data: ^rayt.RaytracerParams,
 	pixels: []u8,
 	image_upscale: f64,
+	scene_name: string,
+	amount: int = 1, // renders per SPACE press; saved time = median of runs
 	cores: int = 16,
 ) {
+	amount := max(amount, 1)
 	cam := rayt.build_camera(params, raytracer_data^)
 	screen_width: c.int = cast(c.int)(cam.image_width * image_upscale)
 	screen_height: c.int = cast(c.int)(cam.image_height * image_upscale)
@@ -229,6 +257,14 @@ interactive_preview :: proc(
 			raytraced = false
 		}
 
+		if rl.IsKeyPressed(.G) {
+			current := collider.grouping_kind(world.space.grouping)
+			next := collider.grouping_kind_next(current)
+			start := time.tick_now()
+			collider.grouping_build(&world.space, next)
+			fmt.println("grouping:", next, "- built in", time.tick_since(start))
+		}
+
 		if rl.IsKeyPressed(.SPACE) {
 			// flush a "Rendering..." frame before the blocking call
 			rl.BeginDrawing()
@@ -236,10 +272,17 @@ interactive_preview :: proc(
 			rl.DrawText("Rendering...", 10, 10, 24, rl.ORANGE)
 			rl.EndDrawing()
 
-			start := time.tick_now()
-			rayt.renderer_render_threaded(raytracer_data^, cam, world, pixels, cores)
-			elapsed = time.tick_since(start)
-			fmt.println("Taked: ", elapsed)
+			runs := make([]time.Duration, amount)
+			defer delete(runs)
+			for run in 0 ..< amount {
+				start := time.tick_now()
+				rayt.renderer_render_threaded(raytracer_data^, cam, world, pixels, cores)
+				runs[run] = time.tick_since(start)
+				fmt.println("render", run + 1, "/", amount, ":", runs[run])
+			}
+			elapsed = utils.median_duration(runs)
+			fmt.println("median:", elapsed)
+			save_render(image, scene_name, collider.grouping_kind(world.space.grouping), elapsed)
 
 			rl.UnloadTexture(texture)
 			texture = rl.LoadTextureFromImage(image)
@@ -271,7 +314,7 @@ interactive_preview :: proc(
 			draw_tracer_camera(cam)
 			rl.EndMode3D()
 			rl.DrawText(
-				"DRAG: orbit  |  WHEEL: zoom  |  SPACE: raytrace  |  F12: screenshot",
+				"DRAG: orbit  |  WHEEL: zoom  |  SPACE: raytrace  |  G: grouping",
 				10,
 				10,
 				20,
@@ -280,7 +323,7 @@ interactive_preview :: proc(
 			rl.DrawText(
 				fmt.ctprintf(
 					"spheres: %v   tracer_cam: %v   look_at: %v   last render: %v",
-					len(world.spheres),
+					len(world.space.objects),
 					cam.position,
 					cam.look_at,
 					elapsed,

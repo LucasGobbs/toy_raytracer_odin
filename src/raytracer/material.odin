@@ -64,7 +64,8 @@ metal_scatter :: proc(ray_in: Ray, hit_record: HitRecord) -> (bool, Ray, Color) 
 	metal_material := hit_record.material.(MetalMaterial)
 
 	reflected_direction := vec3_reflect(ray_in.direction, hit_record.normal)
-	reflected_direction = vec3_unit(reflected_direction) + (metal_material.fuzz * vec3_rand_unit())
+	reflected_direction =
+		vec_unit(reflected_direction) + (metal_material.fuzz * vec3_rand_unit())
 
 	has_scattered := vec_dot(reflected_direction, hit_record.normal) > 0
 	if !has_scattered do return false, Ray{}, Color{}

@@ -1,9 +1,7 @@
 package raytracer
 
 import scene_data "../scene"
-
-// CamParams contains scene-controlled camera settings. Output dimensions and
-// pixel-buffer sizing remain in RaytracerParams.
+import "collider"
 CamParams :: struct {
 	position:      Point3,
 	look_at:       Point3,
@@ -49,14 +47,8 @@ load_from_scene :: proc(desc: ^scene_data.Scene) -> (CamParams, World) {
 		case .sphere:
 			world_append_sphere(
 				&world,
-				Sphere {
-					center = Ray {
-						origin = Point3(object.position),
-						direction = Vec3(object.direction),
-					},
-					radius = object.radius,
-					material = load_material(object.material),
-				},
+				collider.sphere_collider_create(object.position, object.direction, object.radius),
+				load_material(object.material),
 			)
 		}
 	}
